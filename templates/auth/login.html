@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Admin Login — SMART ENTRY{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="auth-bg">
+  <div class="auth-particles">
+    <div class="auth-particle"></div><div class="auth-particle"></div>
+    <div class="auth-particle"></div><div class="auth-particle"></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-ring">
+        <svg viewBox="0 0 60 60" fill="none"><circle cx="30" cy="30" r="27" stroke="url(#ag1)" stroke-width="3"/><path d="M20 30a10 10 0 1 1 20 0 10 10 0 0 1-20 0z" fill="url(#ag2)"/><defs><linearGradient id="ag1" x1="0" y1="0" x2="60" y2="60"><stop stop-color="#6ee7f7"/><stop offset="1" stop-color="#818cf8"/></linearGradient><linearGradient id="ag2" x1="20" y1="20" x2="40" y2="40"><stop stop-color="#6ee7f7"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs></svg>
+      </div>
+      <div class="auth-logo-text">
+        <span class="auth-title">SMART ENTRY</span>
+        <span class="auth-subtitle">Administrator Portal</span>
+        <span class="auth-campus">CSUCC Library — Athenaeum</span>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.login') }}" class="auth-form">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <div class="input-wrapper">
+          <span class="input-icon">👤</span>
+          <input type="text" id="username" name="username"
+                 placeholder="Enter username" autocomplete="username" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrapper">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="password" name="password"
+                 placeholder="Enter password" autocomplete="current-password" required />
+          <button type="button" class="toggle-pw" id="togglePw" title="Show/hide password">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+        Sign In
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <a href="{{ url_for('kiosk.kiosk_entry') }}">← Back to Kiosk</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById("togglePw").addEventListener("click", function() {
+    const pw = document.getElementById("password");
+    pw.type = pw.type === "password" ? "text" : "password";
+  });
+</script>
+{% endblock %}

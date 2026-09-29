@@ -1,0 +1,133 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Analytics — SMART ENTRY{% endblock %}
+{% block page_title %}Analytics & Reports{% endblock %}
+
+{% block admin_content %}
+<!-- Date range picker -->
+<div class="card filter-card">
+  <div class="filter-form">
+    <div class="filter-row">
+      <div class="form-group">
+        <label>From</label>
+        <input type="date" id="analyticFrom" value="{{ week_ago }}" />
+      </div>
+      <div class="form-group">
+        <label>To</label>
+        <input type="date" id="analyticTo" value="{{ today }}" />
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="refreshCharts()">🔄 Refresh</button>
+        <button class="btn btn-success" onclick="exportReport()">📥 Export CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts grid -->
+<div class="charts-grid mt-4">
+  <!-- Daily visitor count -->
+  <div class="chart-card wide">
+    <div class="chart-title">📅 Daily Visitor Count (Last 7 Days)</div>
+    <canvas id="dailyChart" height="100"></canvas>
+  </div>
+
+  <!-- Hourly traffic -->
+  <div class="chart-card">
+    <div class="chart-title">🕐 Hourly Traffic Distribution (Today)</div>
+    <canvas id="hourlyChart" height="160"></canvas>
+  </div>
+
+  <!-- Visit purpose breakdown -->
+  <div class="chart-card">
+    <div class="chart-title">🎯 Visit Purpose Breakdown</div>
+    <canvas id="purposeChart" height="160"></canvas>
+  </div>
+</div>
+
+<!-- Summary stats panel -->
+<div class="stats-grid mt-4" id="summaryStats">
+  <div class="stat-card green">
+    <div class="stat-icon">📊</div>
+    <div class="stat-value" id="summaryTotal">—</div>
+    <div class="stat-label">Total Visits (Period)</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon">📅</div>
+    <div class="stat-value" id="summaryAvg">—</div>
+    <div class="stat-label">Avg Daily Visitors</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  let dailyChart, hourlyChart, purposeChart;
+
+  const chartDefaults = {
+    plugins: { legend: { labels: { color: "#94a3b8", font: {family:"Inter"} } } },
+    scales: {
+      x: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" } },
+      y: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true }
+    }
+  };
+
+  async function initCharts() {
+    // Daily
+    const dailyRes = await fetch("/admin/analytics/daily?days=7");
+    const dailyData = await dailyRes.json();
+    dailyChart = new Chart(document.getElementById("dailyChart"), {
+      type: "bar",
+      data: {
+        labels: dailyData.labels,
+        datasets: [{ label: "Visitors", data: dailyData.data,
+          backgroundColor: "rgba(99,102,241,0.7)", borderColor: "#6366f1",
+          borderWidth: 2, borderRadius: 6 }]
+      },
+      options: {...chartDefaults, responsive:true}
+    });
+    const total = dailyData.data.reduce((a,b)=>a+b,0);
+    document.getElementById("summaryTotal").textContent = total;
+    document.getElementById("summaryAvg").textContent = (total/7).toFixed(1);
+
+    // Hourly
+    const hourlyRes = await fetch("/admin/analytics/hourly");
+    const hourlyData = await hourlyRes.json();
+    hourlyChart = new Chart(document.getElementById("hourlyChart"), {
+      type: "line",
+      data: {
+        labels: hourlyData.labels,
+        datasets: [{ label:"Visitors per Hour", data: hourlyData.data,
+          borderColor:"#6ee7f7", backgroundColor:"rgba(110,231,247,0.1)",
+          tension: 0.4, fill: true, pointRadius: 3 }]
+      },
+      options: {...chartDefaults, responsive:true}
+    });
+
+    // Purpose
+    const purposeRes = await fetch(`/admin/analytics/purpose?date_from=${document.getElementById("analyticFrom").value}&date_to=${document.getElementById("analyticTo").value}`);
+    const purposeData = await purposeRes.json();
+    purposeChart = new Chart(document.getElementById("purposeChart"), {
+      type: "doughnut",
+      data: {
+        labels: purposeData.labels.length ? purposeData.labels : ["No data"],
+        datasets: [{ data: purposeData.data.length ? purposeData.data : [1],
+          backgroundColor: ["#818cf8","#6ee7f7","#34d399","#fbbf24"],
+          borderWidth: 0 }]
+      },
+      options: { responsive:true, plugins: { legend: { labels: { color:"#94a3b8" } } } }
+    });
+  }
+
+  async function refreshCharts() {
+    [dailyChart, hourlyChart, purposeChart].forEach(c => c && c.destroy());
+    initCharts();
+  }
+
+  function exportReport() {
+    const from = document.getElementById("analyticFrom").value;
+    const to   = document.getElementById("analyticTo").value;
+    window.location.href = `/admin/attendance/export?date_from=${from}&date_to=${to}`;
+  }
+
+  initCharts();
+</script>
+{% endblock %}

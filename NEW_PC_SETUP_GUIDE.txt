@@ -1,0 +1,36 @@
+========================================================
+     SMART ENTRY: HOW TO SET UP ON A NEW PC
+========================================================
+
+Setting this system up on a completely new PC is actually very straightforward! Since it is a Python-based web application, you just need to move the files and install the dependencies. 
+
+Here is the step-by-step guide on how to do it:
+
+1. COPY THE FILES
+First, copy your entire "smart_entry" folder (the one on your Desktop) to a USB flash drive or zip it and upload it to Google Drive. Then, paste that folder onto the new PC.
+
+2. INSTALL PYTHON
+If the new PC doesn't have Python installed, you will need to download and install it.
+- Go to https://www.python.org/downloads/ and download the latest Windows installer.
+- IMPORTANT: During installation, make sure to check the box at the bottom that says "Add Python to PATH" before you click Install.
+
+3. PLUG IN THE CAMERAS
+Plug in your two USB Webcams to the new PC. Windows will automatically install their drivers.
+(By default, the system looks for the 1st camera for Entry and 2nd camera for Exit. You can change this in config.py if they get swapped).
+
+4. INSTALL DEPENDENCIES
+Open Command Prompt (or PowerShell) on the new PC, navigate to the folder where you pasted the project, and install the required Python libraries.
+
+  cd Desktop\smart_entry
+  pip install -r requirements.txt
+
+(Remember: The system specifically relies on opencv-contrib-python for the facial recognition to work properly!)
+
+5. RUN THE SYSTEM!
+Once everything is installed, simply start the server:
+
+  python app.py
+
+The system will start running! You can now open a browser on the new PC and go to http://localhost:5000 to access the Admin Dashboard and the Kiosk views, exactly like you do now.
+
+(Note: Since you are moving the folder entirely, all your existing student data, faces, and attendance logs will carry over with it! If you want to start fresh on the new PC, just use the Factory Reset button in your admin sidebar!)

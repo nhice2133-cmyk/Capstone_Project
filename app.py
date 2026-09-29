@@ -1,0 +1,102 @@
+"""
+SMART ENTRY — Flask Application Factory
+Entry point for the application.
+
+Run:
+    python app.py
+Access:
+    Kiosk:   http://localhost:5000/kiosk
+    Admin:   http://localhost:5000/admin   (login: admin / smart_entry_2026)
+"""
+import os
+from datetime import timedelta
+from flask import Flask, redirect, url_for
+from flask_login import LoginManager
+from flask_bcrypt import Bcrypt
+
+from config import Config
+from database.database import init_db, get_admin_by_username, create_admin
+from routes.auth import auth_bp, AdminUser
+from routes.dashboard import dashboard_bp
+from routes.students import students_bp
+from routes.attendance import attendance_bp
+from routes.kiosk import kiosk_bp
+
+bcrypt = Bcrypt()
+login_manager = LoginManager()
+
+
+def create_app():
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+    app.config.from_object(Config)
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
+        minutes=Config.SESSION_TIMEOUT_MINUTES
+    )
+
+    # ── Extensions ────────────────────────────────────────────────────────
+    bcrypt.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Please log in to access the admin panel."
+    login_manager.login_message_category = "warning"
+
+    # ── Blueprints ────────────────────────────────────────────────────────
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(students_bp)
+    app.register_blueprint(attendance_bp)
+    app.register_blueprint(kiosk_bp)
+
+    # ── Root redirect ─────────────────────────────────────────────────────
+    @app.route("/")
+    def index():
+        return redirect(url_for("kiosk.kiosk_entry"))
+
+    return app
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    from database.database import get_db_connection
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM admins WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if row:
+        return AdminUser(row)
+    return None
+
+
+def _seed_default_admin(app):
+    """Create a default admin account on first run if none exists."""
+    with app.app_context():
+        existing = get_admin_by_username("admin")
+        if not existing:
+            pw_hash = bcrypt.generate_password_hash("smart_entry_2026").decode("utf-8")
+            create_admin("admin", pw_hash)
+            print("[OK] Default admin created: username=admin  password=smart_entry_2026")
+            print("[!]  Change the default password after first login!")
+
+
+if __name__ == "__main__":
+    # ── Ensure required directories exist ────────────────────────────────
+    os.makedirs(Config.FACE_DATA_DIR, exist_ok=True)
+    os.makedirs(Config.ALERTS_SNAPSHOT_DIR, exist_ok=True)
+    os.makedirs(os.path.join("recognition", "haarcascade"), exist_ok=True)
+
+    # ── Initialise database ───────────────────────────────────────────────
+    init_db()
+    print("[OK] Database initialised.")
+
+    app = create_app()
+    _seed_default_admin(app)
+
+    print("\n" + "=" * 60)
+    print("  SMART ENTRY -- CSUCC Library Kiosk System")
+    print("=" * 60)
+    print(f"  Kiosk (Entry):  http://localhost:5000/kiosk")
+    print(f"  Kiosk (Exit):   http://localhost:5000/kiosk/exit")
+    print(f"  Admin Panel:    http://localhost:5000/admin")
+    print(f"  Login:          admin / smart_entry_2026")
+    print("=" * 60 + "\n")
+
+    app.run(host="0.0.0.0", port=5000, debug=Config.DEBUG, threaded=True)

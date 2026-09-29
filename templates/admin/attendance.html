@@ -1,0 +1,89 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Attendance — SMART ENTRY{% endblock %}
+{% block page_title %}Attendance Records{% endblock %}
+
+{% block admin_content %}
+<!-- Filter bar -->
+<div class="card filter-card">
+  <form method="GET" action="{{ url_for('attendance.attendance_page') }}" class="filter-form">
+    <div class="filter-row">
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="date" name="date_from" value="{{ filters.date_from }}" />
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="date" name="date_to" value="{{ filters.date_to }}" />
+      </div>
+      <div class="form-group">
+        <label>Program</label>
+        <select name="program">
+          <option value="">All Programs</option>
+          {% for p in programs %}
+            <option {% if filters.program == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Visit Purpose</label>
+        <select name="purpose">
+          <option value="">All Purposes</option>
+          {% for p in purposes %}
+            <option {% if filters.purpose == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" name="search" value="{{ filters.search }}" placeholder="Name or ID…" />
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">🔍 Filter</button>
+        <a href="{{ url_for('attendance.attendance_page') }}" class="btn btn-ghost">Clear</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Export button -->
+<div class="toolbar mt-3">
+  <span class="text-muted">{{ logs | length }} record(s) found</span>
+  <a href="{{ url_for('attendance.export_csv', **filters) }}" class="btn btn-success">
+    📥 Export CSV
+  </a>
+</div>
+
+<!-- Table -->
+<div class="card mt-2">
+  <div class="card-body p-0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th><th>Full Name</th><th>Student ID</th><th>Program</th>
+          <th>Date</th><th>Time In</th><th>Time Out</th><th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><strong>{{ log.full_name }}</strong></td>
+          <td><code>{{ log.student_id }}</code></td>
+          <td><span class="badge badge-info">{{ log.program }}</span></td>
+          <td>{{ log.date }}</td>
+          <td>{{ log.time_in }}</td>
+          <td class="{{ 'text-muted' if not log.time_out }}">{{ log.time_out or '(still inside)' }}</td>
+          <td>
+            {% if log.visit_purpose %}
+              <span class="badge badge-purpose">{{ log.visit_purpose }}</span>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted">No records found for the selected filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

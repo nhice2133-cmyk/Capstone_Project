@@ -1,0 +1,125 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Enroll Student — SMART ENTRY{% endblock %}
+{% block page_title %}Face Enrollment{% endblock %}
+
+{% block admin_content %}
+<div class="enrollment-layout">
+  <!-- Step progress bar -->
+  <div class="step-bar">
+    <div class="step active" id="step1Indicator"><span>1</span> User Info</div>
+    <div class="step-line"></div>
+    <div class="step" id="step2Indicator"><span>2</span> Capture Faces</div>
+    <div class="step-line"></div>
+    <div class="step" id="step3Indicator"><span>3</span> Train Model</div>
+  </div>
+
+  <!-- Step 1: User info form -->
+  <div class="enrollment-step" id="step1">
+    <div class="card">
+      <div class="card-header">📝 User Information</div>
+      <div class="card-body">
+        <form id="studentInfoForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fullName">Full Name</label>
+              <input type="text" id="fullName" placeholder="e.g. Juan Dela Cruz" required />
+            </div>
+            <div class="form-group">
+              <label for="studentId">Student / Employee ID</label>
+              <input type="text" id="studentId" placeholder="e.g. 2023-00001 or EMP-101" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="program">Program</label>
+            <select id="program" required>
+              <option value="">— Select Program —</option>
+              <option value="BSIT">BSIT</option>
+              <option value="BSCS">BSCS</option>
+              <option value="BSEd">BSEd</option>
+              <option value="BSED-English">BSED-English</option>
+              <option value="BSED-Math">BSED-Math</option>
+              <option value="BSN">BSN</option>
+              <option value="BSHM">BSHM</option>
+              <option value="BSCRIM">BSCRIM</option>
+              <option value="Faculty/Employee">Faculty/Employee</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div id="infoMessage" class="form-msg"></div>
+          <button type="submit" class="btn btn-primary" id="btnSaveInfo">
+            Save &amp; Proceed to Capture →
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Face capture -->
+  <div class="enrollment-step hidden" id="step2">
+    <div class="enrollment-capture-layout">
+      <!-- Camera -->
+      <div class="capture-camera-panel">
+        <div class="camera-label">📷 Live Camera Preview</div>
+        <video id="enrollVideo" autoplay playsinline muted class="enroll-video"></video>
+        <canvas id="enrollCanvas" style="display:none;"></canvas>
+        <div class="capture-progress-bar">
+          <div class="capture-progress-fill" id="captureProgressFill" style="width:0%"></div>
+        </div>
+        <div class="capture-count">
+          <span id="captureCount">0</span> / 20 images captured
+        </div>
+        <div id="captureMsg" class="capture-msg"></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="capture-controls-panel">
+        <div class="instructions-card">
+          <h3>📋 Instructions</h3>
+          <ul>
+            <li>Ensure good lighting on your face.</li>
+            <li>Look straight at the camera.</li>
+            <li>Slowly turn slightly left, right, up, and down during capture.</li>
+            <li>Remove glasses if possible.</li>
+            <li>Keep a neutral expression.</li>
+          </ul>
+        </div>
+        <div class="student-preview-card">
+          <div class="preview-name" id="previewName">—</div>
+          <div class="preview-id"   id="previewId">—</div>
+          <div class="preview-prog" id="previewProg">—</div>
+        </div>
+        <button class="btn btn-primary btn-full" id="btnStartCapture">
+          ▶ Start Auto-Capture
+        </button>
+        <button class="btn btn-ghost btn-full hidden" id="btnRetake">
+          🔄 Retake
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Training -->
+  <div class="enrollment-step hidden" id="step3">
+    <div class="card training-card">
+      <div class="card-header">🧠 Training LBPH Model</div>
+      <div class="card-body text-center">
+        <div class="training-animation" id="trainingAnim">
+          <div class="training-spinner"></div>
+          <p>Training face recognition model…</p>
+          <small>This may take a few seconds.</small>
+        </div>
+        <div class="training-result hidden" id="trainingResult"></div>
+        <button class="btn btn-primary hidden" id="btnEnrollAnother" onclick="location.reload()">
+          ➕ Enroll Another User
+        </button>
+        <a href="{{ url_for('students.list_students') }}" class="btn btn-ghost hidden" id="btnGoStudents">
+          👥 View All Users
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="{{ url_for('static', filename='js/enrollment.js') }}"></script>
+{% endblock %}

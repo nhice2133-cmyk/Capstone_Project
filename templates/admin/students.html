@@ -1,0 +1,94 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Students — SMART ENTRY{% endblock %}
+{% block page_title %}Student Management{% endblock %}
+
+{% block admin_content %}
+<div class="toolbar" style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+  <a href="{{ url_for('students.enroll_page') }}" class="btn btn-primary">
+    ➕ Enroll New Student
+  </a>
+  
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <select id="statusFilter" style="padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #1f2937; color: white; cursor: pointer;">
+      <option value="all">All Accounts</option>
+      <option value="active">Active Only</option>
+      <option value="inactive">Deactivated Only</option>
+    </select>
+    <input type="text" id="searchStudents" placeholder="Search by name or ID…" class="search-input" style="margin: 0;" />
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header">
+    <span>👥 Enrolled Students ({{ students | length }})</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table" id="studentsTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Full Name</th><th>Student ID</th>
+          <th>Program</th><th>Enrolled At</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr class="student-row">
+          <td>{{ loop.index }}</td>
+          <td><strong>{{ s.full_name }}</strong></td>
+          <td><code>{{ s.student_id }}</code></td>
+          <td><span class="badge badge-info">{{ s.program }}</span></td>
+          <td>{{ s.enrolled_at }}</td>
+          <td>
+            <span class="badge {{ 'badge-success' if s.status == 'active' else 'badge-muted' }}">
+              {{ s.status.capitalize() }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <form method="POST" action="{{ url_for('students.toggle_student', student_db_id=s.id) }}"
+                  style="display:inline;">
+              <button type="submit" class="btn btn-sm {{ 'btn-warning' if s.status == 'active' else 'btn-success' }}">
+                {{ '⏸ Deactivate' if s.status == 'active' else '▶ Activate' }}
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('students.delete_student', student_db_id=s.id) }}"
+                  style="display:inline;"
+                  onsubmit="return confirm('Delete {{ s.full_name }}? This cannot be undone.');">
+              <button type="submit" class="btn btn-sm btn-danger">🗑 Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted">No students enrolled yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const searchInput = document.getElementById("searchStudents");
+  const statusFilter = document.getElementById("statusFilter");
+
+  function filterTable() {
+    const q = searchInput.value.toLowerCase();
+    const statusVal = statusFilter.value; // "all", "active", "inactive"
+
+    document.querySelectorAll(".student-row").forEach(row => {
+      // cells[1] is Full Name, cells[2] is Student ID, cells[5] is Status
+      const name = row.cells[1].textContent.toLowerCase();
+      const studentId = row.cells[2].textContent.toLowerCase();
+      const statusText = row.cells[5].textContent.trim().toLowerCase();
+      
+      const matchesSearch = name.includes(q) || studentId.includes(q);
+      const matchesStatus = (statusVal === "all") || (statusText === statusVal);
+
+      row.style.display = (matchesSearch && matchesStatus) ? "" : "none";
+    });
+  }
+
+  searchInput.addEventListener("input", filterTable);
+  statusFilter.addEventListener("change", filterTable);
+</script>
+{% endblock %}

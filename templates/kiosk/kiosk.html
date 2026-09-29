@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMART ENTRY — CSUCC Library{% if mode == 'exit' %} (Exit){% endif %}</title>
+  <meta name="description" content="SMART ENTRY Face Recognition Kiosk — CSUCC Library Athenaeum" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk.css') }}" />
+</head>
+<body class="kiosk-body {% if mode == 'exit' %}exit-mode{% endif %}">
+
+  <!-- Animated background particles -->
+  <div class="bg-particles">
+    <div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div>
+  </div>
+
+  <!-- Header bar -->
+  <header class="kiosk-header">
+    <div class="header-left">
+      <div class="logo-ring">
+        <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke="url(#g1)" stroke-width="2.5"/><path d="M13 20a7 7 0 1 1 14 0 7 7 0 0 1-14 0z" fill="url(#g2)"/><defs><linearGradient id="g1" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#6ee7f7"/><stop offset="1" stop-color="#818cf8"/></linearGradient><linearGradient id="g2" x1="13" y1="13" x2="27" y2="27"><stop stop-color="#6ee7f7"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs></svg>
+      </div>
+      <div class="header-title">
+        <span class="title-main">SMART ENTRY</span>
+        <span class="title-sub">CSUCC Library — Athenaeum</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="kioskClock">--:--:--</div>
+      <div class="mode-badge {% if mode == 'exit' %}exit{% else %}entry{% endif %}">
+        {{ '🚪 EXIT MONITOR' if mode == 'exit' else '🏛️ ENTRY KIOSK' }}
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main class="kiosk-main">
+    <!-- Camera panel -->
+    <div class="camera-panel" id="cameraPanel">
+      <div class="scan-ring" id="scanRing">
+        <div class="scan-ring-inner"></div>
+        <div class="scan-bar"></div>
+      </div>
+
+      <!-- Live webcam canvas -->
+      <video id="webcamVideo" autoplay playsinline muted></video>
+      <canvas id="webcamCanvas" style="display:none;"></canvas>
+
+      <!-- Overlay states -->
+      <div class="camera-overlay" id="overlayScanning">
+        <span class="overlay-icon pulse">👤</span>
+        <span class="overlay-text">
+          {% if mode == 'exit' %}MONITORING EXIT{% else %}PLEASE FACE THE CAMERA{% endif %}
+        </span>
+      </div>
+
+      <div class="camera-overlay hidden success-overlay" id="overlaySuccess">
+        <span class="overlay-icon">✅</span>
+        <span class="overlay-text" id="successName">RECOGNIZED</span>
+      </div>
+
+      <div class="camera-overlay hidden alert-overlay" id="overlayAlert">
+        <span class="overlay-icon blink">⚠️</span>
+        <span class="overlay-text">UNAUTHORIZED ACCESS DETECTED</span>
+        <span class="overlay-sub">Library staff has been notified.</span>
+      </div>
+    </div>
+
+    <!-- Info / Interaction panel -->
+    <div class="info-panel" id="infoPanel">
+      <!-- Default state -->
+      <div class="info-state" id="stateDefault">
+        <div class="info-icon">🏛️</div>
+        <h2 class="info-heading">Welcome to the<br/>CSUCC Library</h2>
+        <p class="info-body">
+          {% if mode == 'exit' %}
+            Exit Camera is active.<br/>
+            Face the camera as you leave.<br/>
+            Your departure will be recorded automatically.
+          {% else %}
+            Face the camera to begin.<br/>
+            Recognition takes approximately<br/><strong>2 seconds</strong>.
+          {% endif %}
+        </p>
+        <div class="status-dot" id="statusDot">
+          <span class="dot-pulse"></span>
+          <span>Scanning…</span>
+        </div>
+      </div>
+
+      <!-- Identification Success state (Entry only) -->
+      <div class="info-state hidden" id="stateIdentifySuccess">
+        <div class="confirmed-icon">✅</div>
+        <h2 class="info-heading">Identity Confirmed!</h2>
+        <div class="student-card">
+          <div class="student-avatar" id="studentAvatar">👤</div>
+          <div class="student-info">
+            <div class="student-name" id="studentName">—</div>
+            <div class="student-id" id="studentIdDisplay">—</div>
+            <div class="student-prog" id="studentProg">—</div>
+          </div>
+        </div>
+        <p class="info-body">Loading options...</p>
+      </div>
+
+      <!-- Purpose Selection state (Entry only) -->
+      <div class="info-state hidden" id="statePurpose">
+        <div class="student-card compact" style="margin-bottom: 20px;">
+          <div class="student-info">
+            <div class="student-name" id="purposeStudentName">—</div>
+            <div class="student-prog" id="purposeStudentProg">—</div>
+          </div>
+        </div>
+        <div class="purpose-label">Select Your Visit Purpose</div>
+        <div class="purpose-grid" id="purposeGrid">
+          <button class="purpose-btn" id="btnReturn"    data-purpose="Return Book">📚 Return Book</button>
+          <button class="purpose-btn" id="btnBorrow"   data-purpose="Borrow Book">📖 Borrow Book</button>
+          <button class="purpose-btn" id="btnStudy"    data-purpose="Study Room">🧑‍💻 Study Room</button>
+          <button class="purpose-btn" id="btnGeneral"  data-purpose="General Space">🏢 General Space</button>
+        </div>
+      </div>
+
+      <!-- Exit auto-log state -->
+      <div class="info-state hidden" id="stateExitLogged">
+        <div class="exit-logged-icon">👋</div>
+        <h2 class="info-heading">Time Out Recorded!</h2>
+        <div class="student-card compact">
+          <div class="student-info">
+            <div class="student-name" id="exitStudentName">—</div>
+            <div class="student-prog" id="exitStudentProg">—</div>
+          </div>
+        </div>
+        <p class="info-body">Thank you for visiting the<br/>CSUCC Library Athenaeum.</p>
+      </div>
+
+      <!-- Exit error state (No time in) -->
+      <div class="info-state hidden" id="stateExitError">
+        <div class="alert-icon">❌</div>
+        <h2 class="info-heading">Error: No Time In</h2>
+        <div class="student-card compact">
+          <div class="student-info">
+            <div class="student-name" id="exitErrorName">—</div>
+            <div class="student-prog" id="exitErrorProg">—</div>
+          </div>
+        </div>
+        <p class="info-body">You did not Time In today.<br/>Please ensure you scan at the Entry Kiosk.</p>
+      </div>
+
+      <!-- Confirmed state -->
+      <div class="info-state hidden" id="stateConfirmed">
+        <div class="confirmed-icon">🎉</div>
+        <h2 class="info-heading">Entry Logged!</h2>
+        <div class="confirmed-purpose" id="confirmedPurpose">General Space</div>
+        <p class="info-body">Welcome, <strong id="confirmedName">—</strong>!<br/>Have a productive session at the Athenaeum.</p>
+      </div>
+
+      <!-- Stranger / alert state -->
+      <div class="info-state hidden" id="stateAlert">
+        <div class="alert-icon blink">🚨</div>
+        <h2 class="info-heading alert-heading">Unauthorized Access</h2>
+        <p class="info-body">
+          Your face was not recognized.<br/>
+          Library staff has been notified.<br/>
+          Please register at the library desk.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const KIOSK_MODE = "{{ mode }}";
+  </script>
+  <script src="{{ url_for('static', filename='js/kiosk.js') }}"></script>
+</body>
+</html>
