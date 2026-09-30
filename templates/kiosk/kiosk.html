@@ -41,33 +41,9 @@
   <main class="kiosk-main">
     <!-- Camera panel -->
     <div class="camera-panel" id="cameraPanel">
-      <div class="scan-ring" id="scanRing">
-        <div class="scan-ring-inner"></div>
-        <div class="scan-bar"></div>
-      </div>
-
-      <!-- Live webcam canvas -->
       <video id="webcamVideo" autoplay playsinline muted></video>
       <canvas id="webcamCanvas" style="display:none;"></canvas>
-
-      <!-- Overlay states -->
-      <div class="camera-overlay" id="overlayScanning">
-        <span class="overlay-icon pulse">👤</span>
-        <span class="overlay-text">
-          {% if mode == 'exit' %}MONITORING EXIT{% else %}PLEASE FACE THE CAMERA{% endif %}
-        </span>
-      </div>
-
-      <div class="camera-overlay hidden success-overlay" id="overlaySuccess">
-        <span class="overlay-icon">✅</span>
-        <span class="overlay-text" id="successName">RECOGNIZED</span>
-      </div>
-
-      <div class="camera-overlay hidden alert-overlay" id="overlayAlert">
-        <span class="overlay-icon blink">⚠️</span>
-        <span class="overlay-text">UNAUTHORIZED ACCESS DETECTED</span>
-        <span class="overlay-sub">Library staff has been notified.</span>
-      </div>
+      <canvas id="faceBoxCanvas"></canvas>
     </div>
 
     <!-- Info / Interaction panel -->

@@ -1,7 +1,8 @@
 /**
  * SMART ENTRY — Kiosk JavaScript
  * Controls the webcam feed, recognition loop, state transitions,
- * and attendance logging for both Entry and Exit modes.
+ * face bounding-box rendering, and attendance logging for both
+ * Entry and Exit modes.
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -9,15 +10,15 @@ const MODE = typeof KIOSK_MODE !== "undefined" ? KIOSK_MODE : "entry";
 const RECOGNITION_INTERVAL_MS = 2000;   // how often to send a frame for recognition
 const CONFIRM_DISPLAY_MS       = 4000;  // how long to show confirmed / exit-logged state
 const ALERT_DISPLAY_MS         = 5000;  // how long to show the alert state
+const FACE_BOX_CLEAR_MS        = 3000;  // auto-clear face box if no new detection
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 const video    = document.getElementById("webcamVideo");
 const canvas   = document.getElementById("webcamCanvas");
 const clock    = document.getElementById("kioskClock");
 
-const overlayScanning = document.getElementById("overlayScanning");
-const overlaySuccess  = document.getElementById("overlaySuccess");
-const overlayAlert    = document.getElementById("overlayAlert");
+const faceBoxCanvas = document.getElementById("faceBoxCanvas");
+const faceBoxCtx    = faceBoxCanvas ? faceBoxCanvas.getContext("2d") : null;
 
 const stateDefault         = document.getElementById("stateDefault");
 const stateIdentifySuccess = document.getElementById("stateIdentifySuccess");
@@ -33,6 +34,13 @@ let transitionTimeout = null;
 let currentState   = "idle";       // idle | recognized | confirmed | exit_logged | alert
 let recognitionLoop = null;
 let studentDbId    = null;
+
+// ── Face box state ──────────────────────────────────────────────────────────
+let lastFaceBox      = null;   // current target face box {x, y, w, h}
+let animatedFaceBox  = null;   // smoothly interpolated box for drawing
+let faceBoxClearTimer = null;  // timer to clear the box if no new detections
+let faceBoxColor     = "cyan"; // "cyan" (default/recognized) or "red" (unknown)
+let animFrameId      = null;
 
 // ── Clock ───────────────────────────────────────────────────────────────────
 function updateClock() {
@@ -58,13 +66,23 @@ async function initWebcam() {
     video.onloadedmetadata = () => {
       canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
+      resizeFaceBoxCanvas();
       startRecognitionLoop();
+      startFaceBoxAnimation();
     };
   } catch (err) {
     console.error("Webcam error:", err);
-    showMsg(overlayScanning, "📵 Camera not available.\nCheck webcam connection.");
   }
 }
+
+// ── Resize the face-box canvas to match the camera panel ────────────────────
+function resizeFaceBoxCanvas() {
+  if (!faceBoxCanvas) return;
+  const panel = faceBoxCanvas.parentElement;
+  faceBoxCanvas.width  = panel.clientWidth;
+  faceBoxCanvas.height = panel.clientHeight;
+}
+window.addEventListener("resize", resizeFaceBoxCanvas);
 
 // ── Capture frame as base64 JPEG ────────────────────────────────────────────
 function captureFrame() {
@@ -93,8 +111,18 @@ async function runRecognition() {
 
 // ── Result handler ──────────────────────────────────────────────────────────
 function handleRecognitionResult(data) {
-  if (data.status === "no_face" || data.status === "cooldown") {
-    // Remain in idle scanning state
+  // Update face bounding box for any response that includes one
+  if (data.face_box) {
+    updateFaceBox(data.face_box, data.status === "unknown" ? "red" : "cyan");
+  }
+
+  if (data.status === "no_face") {
+    // No face — the face box will auto-clear via its timer
+    return;
+  }
+
+  if (data.status === "cooldown") {
+    // Face detected but on cooldown — box is already drawn above
     return;
   }
 
@@ -116,6 +144,143 @@ function handleRecognitionResult(data) {
   }
 }
 
+// ── Face Bounding Box Drawing ───────────────────────────────────────────────
+
+function updateFaceBox(box, color) {
+  // box has normalized coords {x, y, w, h} in range [0..1]
+  lastFaceBox  = box;
+  faceBoxColor = color || "cyan";
+
+  // Initialize animated box if this is the first detection
+  if (!animatedFaceBox) {
+    animatedFaceBox = { ...box };
+  }
+
+  // Reset the auto-clear timer
+  if (faceBoxClearTimer) clearTimeout(faceBoxClearTimer);
+  faceBoxClearTimer = setTimeout(() => {
+    lastFaceBox     = null;
+    animatedFaceBox = null;
+    clearFaceBoxCanvas();
+  }, FACE_BOX_CLEAR_MS);
+}
+
+function clearFaceBoxCanvas() {
+  if (!faceBoxCtx || !faceBoxCanvas) return;
+  faceBoxCtx.clearRect(0, 0, faceBoxCanvas.width, faceBoxCanvas.height);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function startFaceBoxAnimation() {
+  function draw() {
+    animFrameId = requestAnimationFrame(draw);
+    if (!faceBoxCtx || !faceBoxCanvas) return;
+
+    faceBoxCtx.clearRect(0, 0, faceBoxCanvas.width, faceBoxCanvas.height);
+
+    if (!lastFaceBox || !animatedFaceBox) return;
+
+    // Smoothly interpolate toward the target box
+    const t = 0.25;
+    animatedFaceBox.x = lerp(animatedFaceBox.x, lastFaceBox.x, t);
+    animatedFaceBox.y = lerp(animatedFaceBox.y, lastFaceBox.y, t);
+    animatedFaceBox.w = lerp(animatedFaceBox.w, lastFaceBox.w, t);
+    animatedFaceBox.h = lerp(animatedFaceBox.h, lastFaceBox.h, t);
+
+    const cw = faceBoxCanvas.width;
+    const ch = faceBoxCanvas.height;
+
+    // The video is mirrored (scaleX(-1)), so mirror the x coordinate
+    const bx = cw - (animatedFaceBox.x * cw) - (animatedFaceBox.w * cw);
+    const by = animatedFaceBox.y * ch;
+    const bw = animatedFaceBox.w * cw;
+    const bh = animatedFaceBox.h * ch;
+
+    // Add some padding
+    const pad = Math.min(bw, bh) * 0.12;
+    const rx = bx - pad;
+    const ry = by - pad;
+    const rw = bw + pad * 2;
+    const rh = bh + pad * 2;
+    const radius = 12;
+
+    // Determine colors
+    const isRed = faceBoxColor === "red";
+    const strokeColor = isRed ? "rgba(248, 113, 113, 0.9)" : "rgba(110, 231, 247, 0.9)";
+    const glowColor   = isRed ? "rgba(248, 113, 113, 0.35)" : "rgba(110, 231, 247, 0.35)";
+    const fillColor   = isRed ? "rgba(248, 113, 113, 0.06)" : "rgba(110, 231, 247, 0.06)";
+
+    // Draw corner brackets instead of a full rectangle for a cleaner look
+    const cornerLen = Math.min(rw, rh) * 0.22;
+    const lw = 2.5;
+
+    faceBoxCtx.save();
+    faceBoxCtx.strokeStyle = strokeColor;
+    faceBoxCtx.lineWidth = lw;
+    faceBoxCtx.lineCap = "round";
+    faceBoxCtx.shadowColor = glowColor;
+    faceBoxCtx.shadowBlur = 14;
+
+    // Fill region with subtle tint
+    faceBoxCtx.fillStyle = fillColor;
+    drawRoundedRect(faceBoxCtx, rx, ry, rw, rh, radius);
+    faceBoxCtx.fill();
+
+    // Top-left corner
+    faceBoxCtx.beginPath();
+    faceBoxCtx.moveTo(rx, ry + cornerLen);
+    faceBoxCtx.lineTo(rx, ry + radius);
+    faceBoxCtx.arcTo(rx, ry, rx + radius, ry, radius);
+    faceBoxCtx.lineTo(rx + cornerLen, ry);
+    faceBoxCtx.stroke();
+
+    // Top-right corner
+    faceBoxCtx.beginPath();
+    faceBoxCtx.moveTo(rx + rw - cornerLen, ry);
+    faceBoxCtx.lineTo(rx + rw - radius, ry);
+    faceBoxCtx.arcTo(rx + rw, ry, rx + rw, ry + radius, radius);
+    faceBoxCtx.lineTo(rx + rw, ry + cornerLen);
+    faceBoxCtx.stroke();
+
+    // Bottom-right corner
+    faceBoxCtx.beginPath();
+    faceBoxCtx.moveTo(rx + rw, ry + rh - cornerLen);
+    faceBoxCtx.lineTo(rx + rw, ry + rh - radius);
+    faceBoxCtx.arcTo(rx + rw, ry + rh, rx + rw - radius, ry + rh, radius);
+    faceBoxCtx.lineTo(rx + rw - cornerLen, ry + rh);
+    faceBoxCtx.stroke();
+
+    // Bottom-left corner
+    faceBoxCtx.beginPath();
+    faceBoxCtx.moveTo(rx + cornerLen, ry + rh);
+    faceBoxCtx.lineTo(rx + radius, ry + rh);
+    faceBoxCtx.arcTo(rx, ry + rh, rx, ry + rh - radius, radius);
+    faceBoxCtx.lineTo(rx, ry + rh - cornerLen);
+    faceBoxCtx.stroke();
+
+    faceBoxCtx.restore();
+  }
+
+  draw();
+}
+
+function drawRoundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
 // ── Entry: prompt for visit purpose ─────────────────────────────────────────
 function promptVisitPurpose(data) {
   currentState = "purpose_selection";
@@ -127,10 +292,6 @@ function promptVisitPurpose(data) {
 
   // Switch info panel to purpose selection
   switchInfoState(statePurpose);
-
-  // Camera overlay
-  document.getElementById("successName").textContent = `✅ ${data.full_name}`;
-  switchOverlay(overlaySuccess);
 }
 
 // ── Exit: auto log time-out ─────────────────────────────────────────────────
@@ -150,12 +311,10 @@ async function logExit(data) {
       document.getElementById("exitStudentName").textContent = data.full_name;
       document.getElementById("exitStudentProg").textContent = data.program;
       switchInfoState(stateExitLogged);
-      switchOverlay(overlaySuccess);
     } else {
       document.getElementById("exitErrorName").textContent = data.full_name;
       document.getElementById("exitErrorProg").textContent = data.program;
       switchInfoState(stateExitError);
-      switchOverlay(null);
     }
   } catch (err) {
     console.warn("Log exit failed:", err);
@@ -163,7 +322,6 @@ async function logExit(data) {
     document.getElementById("exitStudentName").textContent = data.full_name;
     document.getElementById("exitStudentProg").textContent = data.program;
     switchInfoState(stateExitLogged);
-    switchOverlay(overlaySuccess);
   }
 
   setTimeout(resetToIdle, CONFIRM_DISPLAY_MS);
@@ -205,7 +363,6 @@ function showConfirmedState(purpose) {
   document.getElementById("confirmedPurpose").textContent = purpose;
 
   switchInfoState(stateConfirmed);
-  switchOverlay(null);  // hide overlays
 
   setTimeout(resetToIdle, CONFIRM_DISPLAY_MS);
 }
@@ -216,7 +373,6 @@ function showAlertState() {
   stopRecognitionLoop();
 
   switchInfoState(stateAlert);
-  switchOverlay(overlayAlert);
 
   setTimeout(resetToIdle, ALERT_DISPLAY_MS);
 }
@@ -228,19 +384,15 @@ function resetToIdle() {
   studentDbId  = null;
 
   switchInfoState(stateDefault);
-  switchOverlay(overlayScanning);
+  clearFaceBoxCanvas();
+  lastFaceBox = null;
+  animatedFaceBox = null;
   purposeGrid && purposeGrid.querySelectorAll(".purpose-btn").forEach(b => b.classList.remove("selected"));
 
   startRecognitionLoop();
 }
 
-// ── Overlay & info panel helpers ─────────────────────────────────────────────
-function switchOverlay(target) {
-  [overlayScanning, overlaySuccess, overlayAlert].forEach(el => {
-    if (el) el.classList.toggle("hidden", el !== target);
-  });
-}
-
+// ── Info panel helper ────────────────────────────────────────────────────────
 function switchInfoState(target) {
   [stateDefault, stateIdentifySuccess, statePurpose, stateConfirmed, stateExitLogged, stateExitError, stateAlert].forEach(el => {
     if (el) el.classList.toggle("hidden", el !== target);

@@ -155,6 +155,16 @@ def recognize():
     face_roi = detector.crop_face(gray, largest)
     label, confidence = recognizer.predict(face_roi)
 
+    # Build face_box relative to frame dimensions so the frontend can scale it
+    frame_h, frame_w = frame.shape[:2]
+    fx, fy, fw, fh = int(largest[0]), int(largest[1]), int(largest[2]), int(largest[3])
+    face_box = {
+        "x": fx / frame_w,
+        "y": fy / frame_h,
+        "w": fw / frame_w,
+        "h": fh / frame_h,
+    }
+
     if recognizer.is_recognized(confidence):
         student = db.get_student_by_db_id(label)
         if student and student["status"] == "active":
@@ -163,7 +173,7 @@ def recognize():
             
             # If recognized recently on this camera, ignore to prevent UI looping
             if last_rec and (now - last_rec).total_seconds() < Config.RECOGNITION_COOLDOWN_SECONDS:
-                return jsonify({"status": "cooldown"})
+                return jsonify({"status": "cooldown", "face_box": face_box})
                 
             _last_recognized_time[(label, camera_label)] = now
             
@@ -174,6 +184,7 @@ def recognize():
                 "student_id": student["student_id"],
                 "program": student["program"],
                 "confidence": round(confidence, 2),
+                "face_box": face_box,
             })
 
     # ── Stranger detected ─────────────────────────────────────────────────
@@ -207,6 +218,7 @@ def recognize():
     return jsonify({
         "status": "unknown",
         "confidence": round(confidence, 2),
+        "face_box": face_box,
     })
 
 
