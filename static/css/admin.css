@@ -274,6 +274,7 @@
   box-shadow: 0 0 60px rgba(0,0,0,0.6);
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.lightbox.hidden { display: none !important; }
 
 /* Responsive */
 @media (max-width: 768px) {

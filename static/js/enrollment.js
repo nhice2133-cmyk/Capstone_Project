@@ -209,5 +209,8 @@ function goToStep(n) {
 function setMsg(el, text, cls) {
   if (!el) return;
   el.textContent = text;
-  el.className = cls ? `form-msg ${cls}` : "form-msg";
+  // Preserve the element's original base class (capture-msg vs form-msg)
+  const base = el.dataset.baseClass || el.className.split(" ")[0] || "form-msg";
+  el.dataset.baseClass = base;
+  el.className = cls ? `${base} ${cls}` : base;
 }

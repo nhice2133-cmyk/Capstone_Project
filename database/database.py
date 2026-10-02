@@ -124,7 +124,9 @@ def update_student_status(db_id: int, status: str):
 
 
 def delete_student(db_id: int):
+    """Delete a student and their attendance logs (FK constraint)."""
     conn = get_db_connection()
+    conn.execute("DELETE FROM attendance_logs WHERE student_db_id = ?", (db_id,))
     conn.execute("DELETE FROM students WHERE id = ?", (db_id,))
     conn.commit()
     conn.close()
