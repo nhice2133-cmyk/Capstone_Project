@@ -62,11 +62,9 @@
       
       <div style="margin: 20px 15px; border-top: 1px solid rgba(255,255,255,0.1);"></div>
       
-      <form action="{{ url_for('dashboard.system_reset') }}" method="POST" onsubmit="return confirm('⚠️ WARNING!\n\nThis will completely wipe all students, attendance logs, alerts, and facial data.\n\nAre you absolutely sure you want to Factory Reset?');">
-        <button type="submit" class="nav-item" style="width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; color: #fca5a5; padding-left: 15px;">
-          <span class="nav-icon">⚠️</span><span class="nav-label">Factory Reset</span>
-        </button>
-      </form>
+      <a href="{{ url_for('dashboard.system_reset') }}" class="nav-item" style="color: #fca5a5;">
+        <span class="nav-icon">⚠️</span><span class="nav-label">Factory Reset</span>
+      </a>
 
       <a href="{{ url_for('auth.logout') }}" class="nav-item nav-logout">
         <span class="nav-icon">🚪</span><span class="nav-label">Logout</span>

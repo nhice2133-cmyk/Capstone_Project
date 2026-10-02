@@ -1,0 +1,29 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Factory Reset — SMART ENTRY{% endblock %}
+{% block page_title %}Factory Reset{% endblock %}
+
+{% block admin_content %}
+<div class="change-pw-container">
+  <div class="change-pw-card" style="border-color: var(--accent-red);">
+    <div class="change-pw-header">
+      <div class="change-pw-icon">⚠️</div>
+      <h2 class="change-pw-title" style="color: var(--accent-red);">Factory Reset</h2>
+      <p class="change-pw-subtitle">This will wipe all students, attendance logs, alerts, and facial data. This cannot be undone.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('dashboard.system_reset') }}" class="change-pw-form">
+      <div class="form-group">
+        <label for="admin_password" class="form-label" style="color: var(--accent-red);">Enter Admin Password to Confirm</label>
+        <div class="input-wrapper">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="admin_password" name="admin_password" class="form-control" placeholder="Admin Password" required />
+        </div>
+      </div>
+      <div class="form-actions">
+        <a href="{{ url_for('dashboard.home') }}" class="btn btn-ghost">Cancel</a>
+        <button type="submit" class="btn btn-danger">🚨 Wipe All Data</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

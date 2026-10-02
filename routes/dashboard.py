@@ -2,11 +2,11 @@
 SMART ENTRY — Dashboard Routes
 Admin home page and real-time summary stats.
 """
-from flask import Blueprint, render_template, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request
 import os
 import shutil
 from config import Config
-from flask_login import login_required
+from flask_login import login_required, current_user
 from database import database as db
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -38,10 +38,22 @@ def stats_json():
     })
 
 
-@dashboard_bp.route("/admin/system/reset", methods=["POST"])
+@dashboard_bp.route("/admin/system/reset", methods=["GET", "POST"])
 @login_required
 def system_reset():
     """Wipe all user data for testing."""
+    if request.method == "GET":
+        return render_template("admin/factory_reset.html")
+        
+    from app import bcrypt
+    
+    admin_pw = request.form.get("admin_password", "")
+    admin_row = db.get_admin_by_id(current_user.id)
+    
+    if not admin_row or not bcrypt.check_password_hash(admin_row["password_hash"], admin_pw):
+        flash("Incorrect password. Factory reset aborted.", "error")
+        return redirect(url_for("dashboard.system_reset"))
+
     # 1. DB Reset
     db.factory_reset()
     

@@ -50,7 +50,7 @@ class FaceRecognizer:
             unknown / unrecognized.
         """
         if not self._model_loaded:
-            return -1, float("inf")
+            return -1, 999.0
         label, confidence = self._recognizer.predict(face_roi)
         return label, confidence
 
