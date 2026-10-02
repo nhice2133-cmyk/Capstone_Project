@@ -126,6 +126,11 @@ function handleRecognitionResult(data) {
     return;
   }
 
+  if (data.status === "no_model") {
+    // No trained model yet — don't alarm, just keep scanning
+    return;
+  }
+
   if (data.status === "recognized") {
     studentDbId = data.student_db_id;
 

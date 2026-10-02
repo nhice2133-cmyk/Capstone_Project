@@ -56,6 +56,9 @@
       <a href="{{ url_for('kiosk.kiosk_exit') }}" class="nav-item" target="_blank">
         <span class="nav-icon">📤</span><span class="nav-label">Kiosk View (OUT)</span>
       </a>
+      <a href="{{ url_for('auth.change_password') }}" class="nav-item {% if request.endpoint == 'auth.change_password' %}active{% endif %}">
+        <span class="nav-icon">🔒</span><span class="nav-label">Change Password</span>
+      </a>
       
       <div style="margin: 20px 15px; border-top: 1px solid rgba(255,255,255,0.1);"></div>
       

@@ -187,6 +187,13 @@ def recognize():
                 "face_box": face_box,
             })
 
+    # ── No model loaded — skip stranger alerts entirely ───────────────────
+    if not recognizer.is_ready:
+        return jsonify({
+            "status": "no_model",
+            "face_box": face_box,
+        })
+
     # ── Stranger detected ─────────────────────────────────────────────────
     now = datetime.now()
     last = _last_alert_time.get(camera_label)

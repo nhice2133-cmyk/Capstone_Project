@@ -52,6 +52,15 @@ def create_app():
     def index():
         return redirect(url_for("kiosk.kiosk_entry"))
 
+    # ── Inject pending alert count into all templates ─────────────────────
+    @app.context_processor
+    def inject_alert_count():
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            from database.database import count_unresolved_alerts
+            return {"pending_alerts_count": count_unresolved_alerts()}
+        return {"pending_alerts_count": 0}
+
     return app
 
 

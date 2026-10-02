@@ -386,6 +386,27 @@ def create_admin(username: str, password_hash: str):
     conn.commit()
     conn.close()
 
+
+def get_admin_by_id(admin_id: int):
+    """Fetch an admin row by primary key."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM admins WHERE id = ?", (admin_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def update_admin_password(admin_id: int, new_password_hash: str):
+    """Update the password hash for the given admin."""
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE admins SET password_hash = ? WHERE id = ?",
+        (new_password_hash, admin_id),
+    )
+    conn.commit()
+    conn.close()
+
 # ══════════════════════════════════════════════════════════════════════════════
 # System Maintenance
 # ══════════════════════════════════════════════════════════════════════════════
